@@ -64,6 +64,7 @@ class InsurancePipeline:
         if self.workflow is None:
             self.workflow = self.graph.compile()
         final_state = self.workflow.invoke(initial_state)
+        return final_state
 
 
 
