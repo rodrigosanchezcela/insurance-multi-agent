@@ -1,49 +1,87 @@
 # Insurance Multi-Agent System
 
-A modular and extensible multi-agent system built with Python and LangChain.
+An intelligent multi-agent system for automated insurance document processing using LangGraph and LangChain. The system extracts structured data from insurance PDFs, identifies potential risks, and generates comprehensive summaries.
+
+## 🎯 Features
+
+- **OCR-based Text Extraction**: Extracts text from scanned insurance documents using PyMuPDF and Tesseract
+- **Entity Extraction**: Automatically identifies key insurance information (policy numbers, coverage amounts, dates, etc.)
+- **Risk Analysis**: Detects missing information, inconsistencies, unusual clauses, and fraud indicators
+- **Summary Generation**: Creates human-readable summaries combining extracted entities and identified risks
+- **LangGraph Pipeline**: Parallel processing pipeline for efficient document analysis
+- **Structured Output**: Type-safe data models using Pydantic
 
 ## 🏗️ Project Structure
 
 ```
 Insurance-multi-agent/
-├── agents/                 # Agent implementations
-│   ├── __init__.py
-│   ├── base_agent.py      # Abstract base class for all agents
-│   └── example_agent.py   # Example agent implementation
-├── tools/                  # Tools that agents can use
-│   ├── __init__.py
-│   └── example_tool.py    # Example tools
-├── workflows/              # Agent orchestration
-│   ├── __init__.py
-│   └── orchestrator.py    # Multi-agent workflow orchestrator
-├── config/                 # Configuration
-│   ├── __init__.py
-│   └── settings.py        # Application settings
-├── utils/                  # Utility functions
-│   ├── __init__.py
-│   └── logger.py          # Logging utilities
-├── tests/                  # Test files
-│   ├── __init__.py
+├── src/insurance_multi_agent/
+│   ├── agents/                    # Agent implementations
+│   │   ├── entity_extractor_agent.py    # Extracts structured insurance data
+│   │   ├── risk_analyzer_agent.py       # Identifies risks and issues
+│   │   ├── summary_agent.py             # Generates summaries
+│   │   └── prompts.py                   # System prompts for agents
+│   ├── models/                    # Pydantic data models
+│   │   ├── document.py           # Document representation
+│   │   ├── entities.py           # InsuranceEntities model
+│   │   ├── risks.py              # Risks model
+│   │   └── state.py              # LangGraph state definition
+│   ├── text_extractor/           # OCR and text processing
+│   │   ├── text_extractor.py    # PDF extraction logic
+│   │   └── utils/
+│   │       └── helper_tools.py  # Text cleaning utilities
+│   ├── pipeline.py               # LangGraph orchestration
+│   ├── config.py                 # Configuration management
+│   └── constants.py              # Application constants
+├── notebooks/
+│   └── development.ipynb         # Development and testing notebook
+├── tests/                        # Test files
 │   ├── test_agents.py
 │   └── test_orchestrator.py
-├── main.py                 # Application entry point
-├── pyproject.toml          # Project dependencies
-├── .env.example            # Example environment variables
-└── README.md               # This file
+├── data/
+│   ├── raw/                      # Input PDF files
+│   └── processed/                # Processed outputs
+├── main.py                       # Application entry point
+├── pyproject.toml                # Project dependencies (uv)
+├── .env.example                  # Example environment variables
+└── README.md                     # This file
 ```
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Python 3.8+
-- pip or uv package manager
+- Python 3.13+
+- Tesseract OCR installed on your system
+- OpenRouter API key (or compatible LLM provider)
+- uv package manager (recommended) or pip
+
+### System Dependencies
+
+Install Tesseract OCR:
+
+**macOS:**
+```bash
+brew install tesseract
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install tesseract-ocr
+```
+
+**Windows:**
+Download installer from [GitHub](https://github.com/UB-Mannheim/tesseract/wiki)
 
 ### Installation
 
-1. Clone the repository (if not already done)
+1. Clone the repository:
+```bash
+git clone https://github.com/rodrigosanchezcela/insurance-multi-agent.git
+cd insurance-multi-agent
+```
 
-2. Install dependencies:
+2. Install dependencies with uv:
 ```bash
 uv sync
 ```
@@ -56,130 +94,201 @@ pip install -e .
 3. Set up environment variables:
 ```bash
 cp .env.example .env
-# Edit .env with your API keys
+```
+
+Edit `.env` and add your API key:
+```env
+OPENROUTER_API_KEY=your_api_key_here
 ```
 
 ### Running the Application
 
 ```bash
-python main.py
+uv run python main.py
 ```
 
-Or with uv:
+Or activate the virtual environment:
 ```bash
-uv run python main.py
+source .venv/bin/activate  # On macOS/Linux
+# .venv\Scripts\activate   # On Windows
+python main.py
 ```
 
 ## 📖 Usage
 
-### Creating a New Agent
-
-1. Create a new file in the `agents/` directory
-2. Inherit from `BaseAgent`
-3. Implement the `execute()` method
+### Processing a Document
 
 ```python
-from agents.base_agent import BaseAgent
+from insurance_multi_agent.text_extractor.text_extractor import TextExtractor
+from insurance_multi_agent.pipeline import InsurancePipeline
 
-class MyCustomAgent(BaseAgent):
-    def __init__(self):
-        super().__init__(
-            name="My Custom Agent",
-            description="Does something specific"
-        )
-    
-    async def execute(self, task: str, context=None):
-        # Your agent logic here
-        return {"status": "success", "result": "..."}
+# Extract text from PDF
+extractor = TextExtractor()
+document = extractor.extract_text_from_pdf("path/to/insurance.pdf")
+
+# Run the pipeline
+pipeline = InsurancePipeline()
+initial_state = {
+    "document": document,
+    "entities": None,
+    "risks": None,
+    "summary": None
+}
+
+result = pipeline.graph.compile().invoke(initial_state)
+
+# Access results
+print("Entities:", result['entities'])
+print("Risks:", result['risks'])
+print("Summary:", result['summary'])
 ```
 
-### Creating Tools
-
-Add tools in the `tools/` directory that agents can use:
+### Individual Agent Usage
 
 ```python
-def my_custom_tool(input_data):
-    # Tool logic here
-    return {"result": "..."}
+from insurance_multi_agent.agents.entity_extractor_agent import EntityExtractorAgent
+from insurance_multi_agent.agents.risk_analyzer_agent import RiskAnalyzerAgent
+from insurance_multi_agent.agents.summary_agent import SummaryAgent
+
+# Extract entities
+entity_agent = EntityExtractorAgent()
+entities = entity_agent.extract_entities(document)
+
+# Analyze risks
+risk_agent = RiskAnalyzerAgent()
+risks = risk_agent.analyze_risk(document)
+
+# Generate summary
+summary_agent = SummaryAgent()
+summary = summary_agent.summarize(risks=risks, entities=entities)
 ```
 
-### Orchestrating Agents
+## 🔧 Configuration
 
-Use the `AgentOrchestrator` to coordinate multiple agents:
+### LLM Provider
+
+The system uses OpenRouter by default. Configure in `config.py`:
 
 ```python
-from workflows.orchestrator import AgentOrchestrator
-
-orchestrator = AgentOrchestrator()
-orchestrator.register_agent(agent1)
-orchestrator.register_agent(agent2)
-
-workflow = [
-    {"agent_name": "Agent 1", "task": "First task"},
-    {"agent_name": "Agent 2", "task": "Second task"}
-]
-
-result = await orchestrator.execute_workflow(workflow)
+class Config:
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY")
+    BASE_URL: str = "https://openrouter.ai/api/v1"
+    MODEL: str = "openai/gpt-4o-mini"  # Change model as needed
 ```
+
+### Pipeline Architecture
+
+The LangGraph pipeline processes documents with parallel entity extraction and risk analysis:
+
+```
+START → [extract_entities] ↘
+                            → [summarize] → END
+START → [analyze_risk]     ↗
+```
+
+Both agents read the document independently and run in parallel, then their outputs are combined in the summary node.
 
 ## 🧪 Testing
 
-Run tests with pytest:
+Interactive testing is available in the Jupyter notebook:
 
+```bash
+jupyter notebook notebooks/development.ipynb
+```
+
+Run unit tests:
 ```bash
 pytest
 ```
 
-Or with uv:
-```bash
-uv run pytest
-```
+## 📊 Data Models
 
-## 📝 Configuration
+### InsuranceEntities
+- `policy_number`: str
+- `policy_type`: str
+- `insured_name`: str
+- `insurer`: str
+- `coverage_amount`: float
+- `premium`: float
+- `start_date`: str
+- `end_date`: str
 
-Edit `config/settings.py` to customize:
-- Default LLM model
-- Temperature and token limits
-- Timeout settings
-- Logging configuration
+### Risks
+- `risks`: List[str] - List of identified risk findings
 
-Use environment variables in `.env` for sensitive data like API keys.
+### Document
+- `source`: str - File path
+- `content`: str - Raw extracted text
+- `clean_content`: str - Cleaned and processed text
+- `pages`: int
+- `characters`: int
+- `language`: str
 
 ## 🛠️ Development
 
+### Adding a New Agent
+
+1. Create agent file in `src/insurance_multi_agent/agents/`:
+```python
+from langchain_openai import ChatOpenAI
+from insurance_multi_agent.config import Config
+
+class MyCustomAgent:
+    def __init__(self):
+        config = Config()
+        self.llm = ChatOpenAI(
+            model=config.MODEL,
+            base_url=config.BASE_URL,
+            api_key=config.OPENROUTER_API_KEY
+        )
+    
+    def process(self, document):
+        # Your agent logic
+        pass
+```
+
+2. Add system prompt to `prompts.py`
+3. Create Pydantic model in `models/` if needed
+4. Add node to pipeline in `pipeline.py`
+
 ### Adding Dependencies
 
-With uv:
 ```bash
 uv add package-name
 ```
 
-With pip:
-```bash
-pip install package-name
-# Then update pyproject.toml
-```
+## 🔍 Troubleshooting
 
-### Code Structure Best Practices
+**OCR Quality Issues:**
+- Ensure Tesseract is properly installed
+- Check document quality and resolution
+- Adjust preprocessing in `text_extractor.py`
 
-- Keep agents focused on single responsibilities
-- Use the orchestrator for complex multi-step workflows
-- Add tools to extend agent capabilities
-- Write tests for new agents and workflows
-- Use type hints for better code clarity
+**API Rate Limits:**
+- Use a paid tier API key
+- Implement retry logic with exponential backoff
+- Consider switching to a different model
+
+**Memory Issues with Large PDFs:**
+- Process documents page by page
+- Reduce image resolution in OCR preprocessing
+- Use streaming for large documents
 
 ## 📚 Next Steps
 
-1. Customize the example agents for your insurance use case
-2. Add domain-specific tools (claim processing, risk assessment, etc.)
-3. Implement error handling and retry logic
-4. Add more sophisticated orchestration patterns
-5. Integrate with your data sources and APIs
+- [ ] Implement batch processing for multiple documents
+- [ ] Add caching for LLM responses
+- [ ] Create REST API endpoint
+- [ ] Add support for more document formats
+- [ ] Improve OCR text cleaning
+- [ ] Add validation and confidence scores
+- [ ] Implement error handling and retry logic
+- [ ] Add logging and monitoring
 
 ## 🤝 Contributing
 
-Feel free to extend and customize this structure for your specific needs.
+Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
 
 ## 📄 License
 
-[Add your license here]
+MIT License
