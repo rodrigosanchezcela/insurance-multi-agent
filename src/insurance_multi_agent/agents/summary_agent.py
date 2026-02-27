@@ -24,7 +24,7 @@ class SummaryAgent:
     def summarize(self, risks: Risks, entities: InsuranceEntities) -> str:
         """Summarize the document based on the identified risks and extracted entities."""
         risk_list = "\n".join([f"- {risk}" for risk in risks.risks])
-        entity_info = "\n".join([f"{key.replace('_', ' ').title()}: {value}" for key, value in entities.dict().items()])
+        entity_info = "\n".join([f"{key.replace('_', ' ').title()}: {value}" for key, value in entities.model_dump().items()])
         
         messages = [
             SystemMessage(content=self.system_prompt),

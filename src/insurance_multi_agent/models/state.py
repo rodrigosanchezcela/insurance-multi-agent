@@ -1,6 +1,5 @@
 """Pipeline state model for LangGraph workflow."""
 
-from pydantic import BaseModel
 from typing import Optional, TypedDict
 from insurance_multi_agent.models.document import Document
 from insurance_multi_agent.models.entities import InsuranceEntities

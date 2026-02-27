@@ -143,6 +143,17 @@ print("Risks:", result['risks'])
 print("Summary:", result['summary'])
 ```
 
+### Running the Pipeline in Code
+
+You can now run the pipeline using the `invoke` method:
+
+```python
+pipeline = InsurancePipeline()
+result = pipeline.invoke(initial_state)
+```
+
+This will execute the full document analysis pipeline and return the final state with extracted entities, risks, and summary.
+
 ### Individual Agent Usage
 
 ```python
