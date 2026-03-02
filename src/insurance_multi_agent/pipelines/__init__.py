@@ -1,0 +1,3 @@
+from insurance_multi_agent.pipelines.sequential_llm_pipeline import InsurancePipeline as InsurancePipeline
+ 
+ 
